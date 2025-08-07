@@ -92,6 +92,11 @@ def ixfft3d(x):
     return x
 
 
+def xmeshgrid(xlin):
+    xx, yy, zz = jnp.meshgrid(xlin, xlin, xlin, indexing="ij")
+    return xx, yy, zz
+
+
 def main():
     parser = argparse.ArgumentParser(description="Distributed 3D FFT using JAX")
     parser.add_argument("--res", type=int, required=True, help="Resolution of the grid")
@@ -136,7 +141,7 @@ def main():
 
     # Alt. option:
 
-    dist = Dist.create("X")  # XXX or 'Y'
+    dist = Dist.create("Y")  # XXX or 'Y'
 
     with mesh:
         xfft_jit = jax.jit(
@@ -147,12 +152,19 @@ def main():
     L = 2.0 * jnp.pi
     xlin = jnp.linspace(0, L, num=N + 1)
     xlin = xlin[0:N]
-    xx, yy, zz = jnp.meshgrid(xlin, xlin, xlin, indexing="ij")
+    # xx, yy, zz = jnp.meshgrid(xlin, xlin, xlin, indexing="ij")
+
+    xmeshgrid_jit = jax.jit(xmeshgrid, in_shardings=None, out_shardings=sharding)
+    if jax.process_index() == 0:
+        print(f"creating distributed mesh ...")
+    xx, yy, zz = xmeshgrid_jit(xlin)
+    if jax.process_index() == 0:
+        print(f"  success!")
 
     # Apply sharding to meshgrid arrays
-    xx = jax.lax.with_sharding_constraint(xx, sharding)
-    yy = jax.lax.with_sharding_constraint(yy, sharding)
-    zz = jax.lax.with_sharding_constraint(zz, sharding)
+    # xx = jax.lax.with_sharding_constraint(xx, sharding)
+    # yy = jax.lax.with_sharding_constraint(yy, sharding)
+    # zz = jax.lax.with_sharding_constraint(zz, sharding)
 
     vx = jnp.sin(xx) * jnp.cos(yy) * jnp.cos(zz)
     del xx, yy, zz  # free memory
@@ -160,8 +172,12 @@ def main():
     # Perform the FFT
     # warm-up
     # XXXXvx_hat = xfft3d_jit(vx)
+    if jax.process_index() == 0:
+        print(f"warming up ...")
     vx_hat = xfft(vx, dist, Dir.FWD)
     vx_hat.block_until_ready()
+    if jax.process_index() == 0:
+        print(f"  success!")
     # time it
     start_time = time.time()
     for i in range(N_trials):
