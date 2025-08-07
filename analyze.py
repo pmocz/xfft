@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 def main():
     # load log files and plot scaling
     methods = ["jfft", "xfft"]
-    resolutions = [64, 128, 256, 512, 1024]
+    resolutions = [64, 128, 256, 512, 1024, 2048]
     n_devices = [1, 2, 4, 8, 16]
     precisions = ["single", "double"]
     timings = []

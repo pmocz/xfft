@@ -54,19 +54,19 @@ def fft_partitioner(
 
 
 def _fft_XY(x):
-    return jax.numpy.fft.fftn(x, axes=[0, 1])
+    return jfft.fftn(x, axes=[0, 1])
 
 
 def _fft_Z(x):
-    return jax.numpy.fft.fft(x, axis=2)
+    return jfft.fft(x, axis=2)
 
 
 def _ifft_XY(x):
-    return jax.numpy.fft.ifftn(x, axes=[0, 1])
+    return jfft.ifftn(x, axes=[0, 1])
 
 
 def _ifft_Z(x):
-    return jax.numpy.fft.ifft(x, axis=2)
+    return jfft.ifft(x, axis=2)
 
 
 # Use einsum-like notation for sharding rules
@@ -149,28 +149,6 @@ def main():
 
     # Perform the FFT
     # warm-up
-    vx_hat = jfft.fftn(vx)
-    vx_hat.block_until_ready()
-    # time it
-    start_time = time.time()
-    for i in range(N_trials):
-        vx_hat = jfft.fftn(vx)
-        vx_hat.block_until_ready()
-    end_time = time.time()
-
-    timing = 1000.0 * (end_time - start_time) / N_trials
-    var_abs_vx_hat = jnp.var(jnp.abs(vx_hat))
-
-    if jax.process_index() == 0:
-        print(f"JFFT computed in {timing:.6f} ms")
-        print(f"Variance of |vx_hat|: {var_abs_vx_hat}")
-
-        log_filename = f"log_jfft_n{N}_d{n_devices}_{precision}.txt"
-        with open(log_filename, "w") as log_file:
-            log_file.write(f"{timing:.6f}\n")
-
-    # Now do xfft
-    # warm-up
     vx_hat = xfft(vx)
     vx_hat.block_until_ready()
     # time it
@@ -181,13 +159,35 @@ def main():
     end_time = time.time()
 
     timing = 1000.0 * (end_time - start_time) / N_trials
-    var_abs_vx_hat = jnp.var(jnp.abs(vx_hat))
+    var_sol = jnp.var(jnp.abs(vx_hat))
 
     if jax.process_index() == 0:
         print(f"XFFT computed in {timing:.6f} ms")
-        print(f"Variance of |vx_hat|: {var_abs_vx_hat}")
+        print(f"Variance of |vx_hat|: {var_sol}")
 
         log_filename = f"log_xfft_n{N}_d{n_devices}_{precision}.txt"
+        with open(log_filename, "w") as log_file:
+            log_file.write(f"{timing:.6f}\n")
+
+    # Now compare against built-in jfft approach
+    # warm-up
+    vx_hat = jfft.fftn(vx)
+    vx_hat.block_until_ready()
+    # time it
+    start_time = time.time()
+    for i in range(N_trials):
+        vx_hat = jfft.fftn(vx)
+        vx_hat.block_until_ready()
+    end_time = time.time()
+
+    timing = 1000.0 * (end_time - start_time) / N_trials
+    var_sol = jnp.var(jnp.abs(vx_hat))
+
+    if jax.process_index() == 0:
+        print(f"JFFT computed in {timing:.6f} ms")
+        print(f"Variance of |vx_hat|: {var_sol}")
+
+        log_filename = f"log_jfft_n{N}_d{n_devices}_{precision}.txt"
         with open(log_filename, "w") as log_file:
             log_file.write(f"{timing:.6f}\n")
 
