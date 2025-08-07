@@ -141,7 +141,7 @@ def main():
 
     # Alt. option:
 
-    dist = Dist.create("Y")  # XXX or 'Y'
+    dist = Dist.create("X")  # XXX or 'Y'
 
     with mesh:
         xfft_jit = jax.jit(
@@ -174,7 +174,7 @@ def main():
     # XXXXvx_hat = xfft3d_jit(vx)
     if jax.process_index() == 0:
         print(f"warming up ...")
-    vx_hat = xfft(vx, dist, Dir.FWD)
+    vx_hat = xfft_jit(vx, dist, Dir.FWD)
     vx_hat.block_until_ready()
     if jax.process_index() == 0:
         print(f"  success!")
@@ -182,7 +182,7 @@ def main():
     start_time = time.time()
     for i in range(N_trials):
         # XXXXvx_hat = xfft3d_jit(vx)
-        vx_hat = xfft(vx, dist, Dir.FWD)
+        vx_hat = xfft_jit(vx, dist, Dir.FWD)
         vx_hat.block_until_ready()
     end_time = time.time()
 
