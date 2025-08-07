@@ -3,6 +3,9 @@ from enum import Enum
 import jax
 from jax.sharding import PartitionSpec
 
+# From:
+# https://github.com/NVIDIA/CUDALibrarySamples/tree/master/cuFFTMp/JAX_FFT
+
 
 class Dist(Enum):
     """Describes a SLAB data decomposition

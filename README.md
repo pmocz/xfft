@@ -41,4 +41,6 @@ python analyze.py
 
 # Summary
 
-![Scaling](scaling.png)
+![Scaling (single)](scaling_single.png)
+
+![Scaling (double)](scaling_double.png)

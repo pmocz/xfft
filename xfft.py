@@ -7,7 +7,7 @@ from jax.experimental import mesh_utils
 from jax.experimental.custom_partitioning import custom_partitioning
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from typing import Callable
-from xxx import xfft, Dist, Dir
+# from xfft_lib import xfft, Dist, Dir
 
 # Philip Mocz (2025)
 # Flatiron Institute
@@ -129,7 +129,7 @@ def main():
         precision = "single"
         jax.config.update("jax_enable_x64", False)
 
-    N_trials = 30
+    N_trials = 40
 
     # set up xfft
     with mesh:
@@ -141,19 +141,18 @@ def main():
 
     # Alt. option:
 
-    dist = Dist.create("X")  # XXX or 'Y'
+    # dist = Dist.create("X")  # "X" or "Y""
 
-    with mesh:
-        xfft_jit = jax.jit(
-            xfft, in_shardings=sharding, out_shardings=sharding, static_argnums=[1, 2]
-        )
+    # with mesh:
+    #    xfft_jit = jax.jit(
+    #        xfft, in_shardings=sharding, out_shardings=sharding, static_argnums=[1, 2]
+    #    )
 
     # Create a test array
     L = 2.0 * jnp.pi
     xlin = jnp.linspace(0, L, num=N + 1)
     xlin = xlin[0:N]
     # xx, yy, zz = jnp.meshgrid(xlin, xlin, xlin, indexing="ij")
-
     xmeshgrid_jit = jax.jit(xmeshgrid, in_shardings=None, out_shardings=sharding)
     if jax.process_index() == 0:
         print(f"creating distributed mesh ...")
@@ -167,22 +166,23 @@ def main():
     # zz = jax.lax.with_sharding_constraint(zz, sharding)
 
     vx = jnp.sin(xx) * jnp.cos(yy) * jnp.cos(zz)
+    vx.block_until_ready()
     del xx, yy, zz  # free memory
 
     # Perform the FFT
     # warm-up
-    # XXXXvx_hat = xfft3d_jit(vx)
     if jax.process_index() == 0:
         print(f"warming up ...")
-    vx_hat = xfft_jit(vx, dist, Dir.FWD)
+    vx_hat = xfft3d_jit(vx)
+    # vx_hat = xfft_jit(vx, dist, Dir.FWD)
     vx_hat.block_until_ready()
     if jax.process_index() == 0:
         print(f"  success!")
     # time it
     start_time = time.time()
     for i in range(N_trials):
-        # XXXXvx_hat = xfft3d_jit(vx)
-        vx_hat = xfft_jit(vx, dist, Dir.FWD)
+        vx_hat = xfft3d_jit(vx)
+        # vx_hat = xfft_jit(vx, dist, Dir.FWD)
         vx_hat.block_until_ready()
     end_time = time.time()
 
@@ -198,6 +198,7 @@ def main():
             log_file.write(f"{timing:.6f}\n")
 
     # Now compare against built-in jfft approach
+    # (this will OOM sooner than the above for large grids)
     # warm-up
     vx_hat = jfft.fftn(vx)
     vx_hat.block_until_ready()

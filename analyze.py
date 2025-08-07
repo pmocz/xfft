@@ -26,12 +26,12 @@ def main():
                         timings.append(np.nan)
 
     # Plot the results
-    plt.figure()
-    timings = np.array(timings).reshape(
-        len(methods), len(precisions), len(n_devices), len(resolutions)
-    )
-    for j, method in enumerate(methods):
-        for k, precision in enumerate(precisions):
+    for k, precision in enumerate(precisions):
+        plt.figure()
+        timings = np.array(timings).reshape(
+            len(methods), len(precisions), len(n_devices), len(resolutions)
+        )
+        for j, method in enumerate(methods):
             for i, n_dev in enumerate(n_devices):
                 timings_slice = timings[j, k, i, :]
                 if np.all(np.isnan(timings_slice)):
@@ -39,19 +39,21 @@ def main():
                 plt.plot(
                     resolutions,
                     timings_slice,
-                    marker="o",
+                    marker="o" if j == 0 else "s",
+                    linewidth=0.5 if j == 0 else 1,
                     label=f"{method} ({precision}) #gpus={n_dev}",
                 )
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.xticks(resolutions, labels=[str(r) for r in resolutions])
-    times_ms = [0.1, 1, 10, 100]
-    plt.yticks(times_ms, labels=[str(r) for r in times_ms])
-    plt.xlabel("resolution")
-    plt.ylabel("time (ms) --  lower is better")
-    plt.title("Scaling of 3D FFT")
-    plt.legend()
-    plt.savefig("scaling.png")
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.xticks(resolutions, labels=[str(r) for r in resolutions])
+        times_ms = [0.01, 0.1, 1, 10, 100, 1000]
+        plt.yticks(times_ms, labels=[str(r) for r in times_ms])
+        plt.xlabel("resolution")
+        plt.ylabel("time (ms) -  lower is better")
+        plt.ylim(0.05, 4000.0)
+        plt.title(f"Scaling of 3D FFT ({precision})")
+        plt.legend()
+        plt.savefig(f"scaling_{precision}.png")
 
 
 if __name__ == "__main__":
