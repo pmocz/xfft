@@ -7,6 +7,7 @@ from jax.experimental import mesh_utils
 from jax.experimental.custom_partitioning import custom_partitioning
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from typing import Callable
+from xxx import xfft, Dist, Dir
 
 # Philip Mocz (2025)
 # Flatiron Institute
@@ -15,7 +16,7 @@ from typing import Callable
 # TODO: turn this into a proper mini-library
 
 
-# Enable Shardy partitioner
+# Enable Shardy partitioner (should be on by default in JAX 0.7.0)
 jax.config.update("jax_use_shardy_partitioner", True)
 
 
@@ -79,13 +80,13 @@ ifft_XY = fft_partitioner(_ifft_XY, PartitionSpec(None, None, "gpus"), "i j k ->
 ifft_Z = fft_partitioner(_ifft_Z, PartitionSpec(None, "gpus"), "i j k -> i j k")
 
 
-def xfftn(x):
+def xfft3d(x):
     x = fft_Z(x)
     x = fft_XY(x)
     return x
 
 
-def ixfftn(x):
+def ixfft3d(x):
     x = ifft_XY(x)
     x = ifft_Z(x)
     return x
@@ -127,10 +128,19 @@ def main():
 
     # set up xfft
     with mesh:
-        xfft = jax.jit(
-            xfftn,
-            in_shardings=(NamedSharding(mesh, PartitionSpec(None, "gpus"))),
-            out_shardings=(NamedSharding(mesh, PartitionSpec(None, "gpus"))),
+        xfft3d_jit = jax.jit(
+            xfft3d,
+            in_shardings=sharding,
+            out_shardings=sharding,
+        )
+
+    # Alt. option:
+
+    dist = Dist.create("X")  # XXX or 'Y'
+
+    with mesh:
+        xfft_jit = jax.jit(
+            xfft, in_shardings=sharding, out_shardings=sharding, static_argnums=[1, 2]
         )
 
     # Create a test array
@@ -149,12 +159,14 @@ def main():
 
     # Perform the FFT
     # warm-up
-    vx_hat = xfft(vx)
+    # XXXXvx_hat = xfft3d_jit(vx)
+    vx_hat = xfft(vx, dist, Dir.FWD)
     vx_hat.block_until_ready()
     # time it
     start_time = time.time()
     for i in range(N_trials):
-        vx_hat = xfft(vx)
+        # XXXXvx_hat = xfft3d_jit(vx)
+        vx_hat = xfft(vx, dist, Dir.FWD)
         vx_hat.block_until_ready()
     end_time = time.time()
 
