@@ -14,6 +14,7 @@ from typing import Callable
 
 # Distributed 3D fft using JAX
 # TODO: turn this into a proper mini-library
+# TODO: additional optimizations
 
 
 # Enable Shardy partitioner (should be on by default in JAX 0.7.0)
@@ -97,6 +98,11 @@ def xmeshgrid(xlin):
     return xx, yy, zz
 
 
+def print_on_master(*args, **kwargs):
+    if jax.process_index() == 0:
+        print(*args, **kwargs)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Distributed 3D FFT using JAX")
     parser.add_argument("--res", type=int, required=True, help="Resolution of the grid")
@@ -119,8 +125,7 @@ def main():
     mesh = Mesh(devices, axis_names=("gpus",))
     sharding = NamedSharding(mesh, PartitionSpec(None, "gpus"))
 
-    if jax.process_index() == 0:
-        print(f"Calculating FFT with resolution {N} on {n_devices} devices")
+    print_on_master(f"Calculating FFT with resolution {N} on {n_devices} devices")
 
     if args.double:
         precision = "double"
@@ -154,11 +159,9 @@ def main():
     xlin = xlin[0:N]
     # xx, yy, zz = jnp.meshgrid(xlin, xlin, xlin, indexing="ij")
     xmeshgrid_jit = jax.jit(xmeshgrid, in_shardings=None, out_shardings=sharding)
-    if jax.process_index() == 0:
-        print(f"creating distributed mesh ...")
+    print_on_master(f"creating distributed mesh ...")
     xx, yy, zz = xmeshgrid_jit(xlin)
-    if jax.process_index() == 0:
-        print(f"  success!")
+    print_on_master(f"  success!")
 
     # Apply sharding to meshgrid arrays
     # xx = jax.lax.with_sharding_constraint(xx, sharding)
@@ -167,17 +170,15 @@ def main():
 
     vx = jnp.sin(xx) * jnp.cos(yy) * jnp.cos(zz)
     vx.block_until_ready()
-    del xx, yy, zz  # free memory
+    del xx, yy, zz, xlin  # free memory
 
     # Perform the FFT
     # warm-up
-    if jax.process_index() == 0:
-        print(f"warming up ...")
+    print_on_master(f"warming up ...")
     vx_hat = xfft3d_jit(vx)
     # vx_hat = xfft_jit(vx, dist, Dir.FWD)
     vx_hat.block_until_ready()
-    if jax.process_index() == 0:
-        print(f"  success!")
+    print_on_master(f"  success!")
     # time it
     start_time = time.time()
     for i in range(N_trials):
@@ -189,10 +190,10 @@ def main():
     timing = 1000.0 * (end_time - start_time) / N_trials
     var_sol = jnp.var(jnp.abs(vx_hat))
 
-    if jax.process_index() == 0:
-        print(f"XFFT computed in {timing:.6f} ms")
-        print(f"Variance of |vx_hat|: {var_sol}")
+    print_on_master(f"XFFT computed in {timing:.6f} ms")
+    print_on_master(f"Variance of |vx_hat|: {var_sol}")
 
+    if jax.process_index() == 0:
         log_filename = f"log_xfft_n{N}_d{n_devices}_{precision}.txt"
         with open(log_filename, "w") as log_file:
             log_file.write(f"{timing:.6f}\n")
@@ -212,10 +213,10 @@ def main():
     timing = 1000.0 * (end_time - start_time) / N_trials
     var_sol = jnp.var(jnp.abs(vx_hat))
 
-    if jax.process_index() == 0:
-        print(f"JFFT computed in {timing:.6f} ms")
-        print(f"Variance of |vx_hat|: {var_sol}")
+    print_on_master(f"JFFT computed in {timing:.6f} ms")
+    print_on_master(f"Variance of |vx_hat|: {var_sol}")
 
+    if jax.process_index() == 0:
         log_filename = f"log_jfft_n{N}_d{n_devices}_{precision}.txt"
         with open(log_filename, "w") as log_file:
             log_file.write(f"{timing:.6f}\n")
