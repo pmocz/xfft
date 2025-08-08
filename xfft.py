@@ -16,8 +16,13 @@ from typing import Callable
 # TODO: turn this into a proper mini-library
 # TODO: additional optimizations
 
+# 1. Array is initially sharded along Y
+# 2. Given a local (X, Y // nGPUs, Z) array, compute local FFTs along Z
+# 3. Re-shard (re-distribute) the array along Z
+# 4. Given a local (X, Y, Z // nGPUs) array, compute local FFTs along X and Y
+# 5. Re-shard (re-distribute) the array along Y
 
-# Enable Shardy partitioner (should be on by default in JAX 0.7.0)
+# Enable Shardy partitioner (should be on by default in JAX 0.7.0+)
 jax.config.update("jax_use_shardy_partitioner", True)
 
 
@@ -72,9 +77,8 @@ def _ifft_Z(x):
 
 
 # Use einsum-like notation for sharding rules
-# For 3D arrays: preserve sharding along all dimensions
-# fft_XY/ifft_XY: operate on 2D slices (axes [0,1]), preserve sharding along all dimensions
-# fft_Z/ifft_Z: operate on 1D slices (axis 2), preserve sharding along all dimensions
+# fft_XY/ifft_XY: operate on 2D slices (axes [0,1])
+# fft_Z/ifft_Z: operate on 1D slices (axis 2)
 fft_XY = fft_partitioner(_fft_XY, PartitionSpec(None, None, "gpus"), "i j k -> i j k")
 fft_Z = fft_partitioner(_fft_Z, PartitionSpec(None, "gpus"), "i j k -> i j k")
 ifft_XY = fft_partitioner(_ifft_XY, PartitionSpec(None, None, "gpus"), "i j k -> i j k")
