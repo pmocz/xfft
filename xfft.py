@@ -29,7 +29,6 @@ jax.config.update("jax_use_shardy_partitioner", True)
 def fft_partitioner(
     fft_func: Callable[[jax.Array], jax.Array],
     partition_spec: PartitionSpec,
-    sharding_rule: str,
 ):
     @custom_partitioning
     def func(x):
@@ -55,7 +54,7 @@ def fft_partitioner(
     func.def_partition(
         infer_sharding_from_operands=infer_sharding_from_operands,
         partition=partition,
-        sharding_rule=sharding_rule,
+        sharding_rule="i j k -> i j k",
     )
     return func
 
@@ -79,10 +78,10 @@ def _ifft_Z(x):
 # Use einsum-like notation for sharding rules
 # fft_XY/ifft_XY: operate on 2D slices (axes [0,1])
 # fft_Z/ifft_Z: operate on 1D slices (axis 2)
-fft_XY = fft_partitioner(_fft_XY, PartitionSpec(None, None, "gpus"), "i j k -> i j k")
-fft_Z = fft_partitioner(_fft_Z, PartitionSpec(None, "gpus"), "i j k -> i j k")
-ifft_XY = fft_partitioner(_ifft_XY, PartitionSpec(None, None, "gpus"), "i j k -> i j k")
-ifft_Z = fft_partitioner(_ifft_Z, PartitionSpec(None, "gpus"), "i j k -> i j k")
+fft_XY = fft_partitioner(_fft_XY, PartitionSpec(None, None, "gpus"))
+fft_Z = fft_partitioner(_fft_Z, PartitionSpec(None, "gpus"))
+ifft_XY = fft_partitioner(_ifft_XY, PartitionSpec(None, None, "gpus"))
+ifft_Z = fft_partitioner(_ifft_Z, PartitionSpec(None, "gpus"))
 
 
 def xfft3d(x):
