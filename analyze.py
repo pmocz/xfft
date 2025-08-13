@@ -43,6 +43,16 @@ def main():
                     linewidth=0.5 if j == 0 else 1,
                     label=f"{method} ({precision}) #gpus={n_dev}",
                 )
+                if not np.isnan(timings_slice[-1]):
+                    plt.text(
+                        resolutions[-1],
+                        timings_slice[-1] * 0.55,
+                        f"{timings_slice[-1]:.1f}",
+                        fontsize=8,
+                        ha="center",
+                        va="bottom",
+                    )
+
         plt.xscale("log")
         plt.yscale("log")
         plt.xticks(resolutions, labels=[str(r) for r in resolutions])

@@ -7,7 +7,6 @@ from jax.experimental import mesh_utils
 from jax.experimental.custom_partitioning import custom_partitioning
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from typing import Callable
-# from xfft_lib import xfft, Dist, Dir
 
 # Philip Mocz (2025)
 # Flatiron Institute
@@ -15,6 +14,10 @@ from typing import Callable
 # Distributed 3D fft using JAX
 # TODO: turn this into a proper mini-library
 # TODO: additional optimizations
+# see also:
+# https://gist.github.com/Findus23/eb5ecb9f65ccf13152cda7c7e521cbdd
+# https://github.com/NVIDIA/CUDALibrarySamples/tree/master/cuFFTMp/JAX_FFT
+# https://docs.jax.dev/en/latest/jax.experimental.custom_partitioning.html
 
 # 1. Array is initially sharded along Y
 # 2. Given a local (X, Y // nGPUs, Z) array, compute local FFTs along Z
@@ -38,7 +41,7 @@ def fft_partitioner(
         return NamedSharding(sharding.mesh, partition_spec)
 
     def partition(mesh, arg_shapes, result_shape):
-        result_shardings = jax.tree.map(lambda x: x.sharding, result_shape)
+        # result_shardings = jax.tree.map(lambda x: x.sharding, result_shape)
         arg_shardings = jax.tree.map(lambda x: x.sharding, arg_shapes)
         return (
             mesh,
@@ -75,7 +78,6 @@ def _ifft_Z(x):
     return jfft.ifft(x, axis=2)
 
 
-# Use einsum-like notation for sharding rules
 # fft_XY/ifft_XY: operate on 2D slices (axes [0,1])
 # fft_Z/ifft_Z: operate on 1D slices (axis 2)
 fft_XY = fft_partitioner(_fft_XY, PartitionSpec(None, None, "gpus"))
@@ -147,15 +149,6 @@ def main():
             out_shardings=sharding,
         )
 
-    # Alt. option:
-
-    # dist = Dist.create("X")  # "X" or "Y""
-
-    # with mesh:
-    #    xfft_jit = jax.jit(
-    #        xfft, in_shardings=sharding, out_shardings=sharding, static_argnums=[1, 2]
-    #    )
-
     # Create a test array
     L = 2.0 * jnp.pi
     xlin = jnp.linspace(0, L, num=N + 1)
@@ -166,7 +159,7 @@ def main():
     xx, yy, zz = xmeshgrid_jit(xlin)
     print_on_master(f"  success!")
 
-    # Apply sharding to meshgrid arrays
+    # Apply sharding to meshgrid arrays (not necessary, should be inherited)
     # xx = jax.lax.with_sharding_constraint(xx, sharding)
     # yy = jax.lax.with_sharding_constraint(yy, sharding)
     # zz = jax.lax.with_sharding_constraint(zz, sharding)
@@ -179,14 +172,12 @@ def main():
     # warm-up
     print_on_master(f"warming up ...")
     vx_hat = xfft3d_jit(vx)
-    # vx_hat = xfft_jit(vx, dist, Dir.FWD)
     vx_hat.block_until_ready()
     print_on_master(f"  success!")
     # time it
     start_time = time.time()
     for i in range(N_trials):
         vx_hat = xfft3d_jit(vx)
-        # vx_hat = xfft_jit(vx, dist, Dir.FWD)
         vx_hat.block_until_ready()
     end_time = time.time()
 
