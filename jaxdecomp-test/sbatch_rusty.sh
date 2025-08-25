@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-#SBATCH --job-name=xfft
+#SBATCH --job-name=jdfft
 #SBATCH --output=slurm-%j.out
 #SBATCH --error=slurm-%j.err
 #SBATCH --partition gpu
@@ -24,15 +24,15 @@ echo "resolution: $1"
 if [ "$2" == "double" ]; then
     echo "Using double precision"
     if [ "$SLURM_GPUS_PER_NODE" -gt 1 ] || [ "$SLURM_JOB_NUM_NODES" -gt 1 ]; then
-      srun --cpu-bind=cores python xfft.py --res $1 --double --distributed
+      srun --cpu-bind=cores python jdfft.py --res $1 --double --distributed
     else
-        srun --cpu-bind=cores python xfft.py --res $1 --double
+        srun --cpu-bind=cores python jdfft.py --res $1 --double
     fi
 else
     echo "Using single precision"
     if [ "$SLURM_GPUS_PER_NODE" -gt 1 ] || [ "$SLURM_JOB_NUM_NODES" -gt 1 ]; then
-      srun --cpu-bind=cores python xfft.py --res $1 --distributed
+      srun --cpu-bind=cores python jdfft.py --res $1 --distributed
     else
-        srun --cpu-bind=cores python xfft.py --res $1
+        srun --cpu-bind=cores python jdfft.py --res $1
     fi
 fi
