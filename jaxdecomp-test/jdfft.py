@@ -15,6 +15,7 @@ import jaxdecomp as jd
 
 # Try out jaxdecomp
 
+
 def fft_partitioner(
     fft_func: Callable[[jax.Array], jax.Array],
     partition_spec: PartitionSpec,
