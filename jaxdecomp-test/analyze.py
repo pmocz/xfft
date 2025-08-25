@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 def main():
     # load log files and plot scaling
-    methods = ["jfft", "xfft"]
+    methods = ["jfft", "jdfft"]  # "xfft"
     resolutions = [64, 128, 256, 512, 1024, 2048]
     n_devices = [1, 2, 4, 8, 16]
     precisions = ["single", "double"]
@@ -41,7 +41,7 @@ def main():
                     timings_slice,
                     marker="o" if j == 0 else "s",
                     linewidth=0.5 if j == 0 else 1,
-                    label=f"{method} ({precision}) #gpus={n_dev}",
+                    label=f"{method} #gpus={n_dev}",
                 )
                 if not np.isnan(timings_slice[-1]):
                     plt.text(

@@ -67,10 +67,10 @@ def _ifft_Z(x):
 
 # fft_XY/ifft_XY: operate on 2D slices (axes [0,1])
 # fft_Z/ifft_Z: operate on 1D slices (axis 2)
-fft_XY = fft_partitioner(_fft_XY, PartitionSpec(None, None, "gpus"))
-fft_Z = fft_partitioner(_fft_Z, PartitionSpec(None, "gpus"))
-ifft_XY = fft_partitioner(_ifft_XY, PartitionSpec(None, None, "gpus"))
-ifft_Z = fft_partitioner(_ifft_Z, PartitionSpec(None, "gpus"))
+fft_XY = fft_partitioner(_fft_XY, PartitionSpec("x", "y"))
+fft_Z = fft_partitioner(_fft_Z, PartitionSpec("x", "y"))
+ifft_XY = fft_partitioner(_ifft_XY, PartitionSpec("x", "y"))
+ifft_Z = fft_partitioner(_ifft_Z, PartitionSpec("x", "y"))
 
 
 def xfft3d(x):
@@ -113,9 +113,15 @@ def main():
 
     # Create mesh and sharding for distributed computation
     n_devices = jax.device_count()
-    devices = mesh_utils.create_device_mesh((n_devices,))
-    mesh = Mesh(devices, axis_names=("gpus",))
-    sharding = NamedSharding(mesh, PartitionSpec(None, "gpus"))
+    devices = mesh_utils.create_device_mesh((1, n_devices))
+    mesh = Mesh(devices, axis_names=("x", "y"))
+    sharding = NamedSharding(mesh, PartitionSpec("x", "y"))
+
+    # n_devices = jax.device_count()  # Total number of GPUs
+    # assert n_devices % 2 == 0, "Need an even number of devices for 2D mesh"
+    # pdims = (2, n_devices // 2)
+    # mesh = jax.make_mesh(pdims, axis_names=("x", "y"))
+    # sharding = NamedSharding(mesh, PartitionSpec("x", "y"))
 
     print_on_master(f"Calculating FFT with resolution {N} on {n_devices} devices")
 
@@ -155,30 +161,30 @@ def main():
     vx.block_until_ready()
     del xx, yy, zz, xlin  # free memory
 
-    # Perform the FFT
-    # warm-up
-    print_on_master(f"warming up ...")
-    vx_hat = xfft3d_jit(vx)
-    vx_hat.block_until_ready()
-    print_on_master(f"  success!")
-    # time it
-    start_time = time.time()
-    for i in range(N_trials):
-        vx_hat = xfft3d_jit(vx)
-        vx_hat.block_until_ready()
-    end_time = time.time()
+    # # Perform the FFT
+    # # XXX note partitioning on xfft is currently incompatible - FIX/ignore
+    # # warm-up
+    # print_on_master(f"warming up ...")
+    # vx_hat = xfft3d_jit(vx)
+    # vx_hat.block_until_ready()
+    # print_on_master(f"  success!")
+    # # time it
+    # start_time = time.time()
+    # for i in range(N_trials):
+    #     vx_hat = xfft3d_jit(vx)
+    #     vx_hat.block_until_ready()
+    # end_time = time.time()
 
-    timing = 1000.0 * (end_time - start_time) / N_trials
-    var_sol = jnp.var(jnp.abs(vx_hat))
+    # timing = 1000.0 * (end_time - start_time) / N_trials
+    # var_sol = jnp.var(jnp.abs(vx_hat))
 
-    print_on_master(f"XFFT computed in {timing:.6f} ms")
-    print_on_master(f"Variance of |vx_hat|: {var_sol}")
+    # print_on_master(f"XFFT computed in {timing:.6f} ms")
+    # print_on_master(f"Variance of |vx_hat|: {var_sol}")
 
-    if jax.process_index() == 0:
-        log_filename = f"log_xfft_n{N}_d{n_devices}_{precision}.txt"
-        with open(log_filename, "w") as log_file:
-            log_file.write(f"{timing:.6f}\n")
-
+    # if jax.process_index() == 0:
+    #     log_filename = f"log_xfft_n{N}_d{n_devices}_{precision}.txt"
+    #     with open(log_filename, "w") as log_file:
+    #         log_file.write(f"{timing:.6f}\n")
 
     # Now compare against jaxdecomp
     print_on_master(f"warming up ...")
