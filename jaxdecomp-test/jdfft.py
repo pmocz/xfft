@@ -179,6 +179,30 @@ def main():
         with open(log_filename, "w") as log_file:
             log_file.write(f"{timing:.6f}\n")
 
+
+    # Now compare against jaxdecomp
+    print_on_master(f"warming up ...")
+    vx_hat = jd.pfft3d(vx)
+    vx_hat.block_until_ready()
+    print_on_master(f"  success!")
+    # time it
+    start_time = time.time()
+    for i in range(N_trials):
+        vx_hat = jd.pfft3d(vx)
+        vx_hat.block_until_ready()
+    end_time = time.time()
+
+    timing = 1000.0 * (end_time - start_time) / N_trials
+    var_sol = jnp.var(jnp.abs(vx_hat))
+
+    print_on_master(f"JAXDecomp FFT computed in {timing:.6f} ms")
+    print_on_master(f"Variance of |vx_hat|: {var_sol}")
+
+    if jax.process_index() == 0:
+        log_filename = f"log_jdfft_n{N}_d{n_devices}_{precision}.txt"
+        with open(log_filename, "w") as log_file:
+            log_file.write(f"{timing:.6f}\n")
+
     # Now compare against built-in jfft approach
     # (this will OOM sooner than the above for large grids)
     # warm-up
