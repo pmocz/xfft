@@ -1,4 +1,4 @@
-# xfft
+# jdfft
 
 Distributed 3D fft using JAX
 
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 # Run locally
 
 ```console
-python xfft.py --res 512
+python jdfft.py --res 512
 ```
 
 ## Submit job (to Rusty)
