@@ -16,7 +16,7 @@ and `jaxdecomp` (as of Aug 25, 2025, this only works up to jax v0.5.3)
 
 ```console
 module purge
-module load python/3.11
+module load python/3.13
 python -m venv --system-site-packages $VENVDIR/jdfft-venv
 source $VENVDIR/jdfft-venv/bin/activate
 pip install --upgrade pip

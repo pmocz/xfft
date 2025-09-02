@@ -14,7 +14,7 @@ TODO: turn this into a proper mini-library
 
 ```console
 module purge
-module load python/3.11
+module load python/3.13
 python -m venv --system-site-packages $VENVDIR/xfft-venv
 source $VENVDIR/xfft-venv/bin/activate
 pip install --upgrade pip
