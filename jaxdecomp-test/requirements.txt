@@ -1,2 +1,2 @@
 jax[cuda12]==0.5.3
-jaxdecomp
+jaxdecomp==0.2.7
